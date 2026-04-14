@@ -1,8 +1,6 @@
-package com.tdd.pricing.application;
+package com.tdd.pricing.service;
 
 import com.tdd.pricing.domain.model.Basket;
-import com.tdd.pricing.domain.policy.DefaultDiscountPolicy;
-import com.tdd.pricing.domain.service.OptimalPriceCalculator;
 import com.tdd.pricing.domain.service.PriceCalculator;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
