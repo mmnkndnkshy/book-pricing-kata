@@ -43,4 +43,6 @@ Thumbs.db
 # ===============================
 # Maven Wrapper (optional)
 # ===============================
-.mvn/wrapper/maven-wrapper.jar
+.mvn/
+mvnw
+mvnw.cmd
