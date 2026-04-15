@@ -8,6 +8,7 @@ import org.junit.jupiter.api.Test;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class OptimalPriceCalculatorTest {
 
@@ -123,5 +124,73 @@ class OptimalPriceCalculatorTest {
         double result = calculator.calculatePrice(basket);
 
         assertEquals(250.0, result);
+    }
+
+    //Boundary: maximum discount group
+    @Test
+    void shouldApplyMaxDiscount_whenFiveDifferentBooks() {
+
+        Basket basket = new Basket(Map.of(
+                Book.CLEAN_CODE, 1,
+                Book.CLEAN_CODER, 1,
+                Book.CLEAN_ARCHITECTURE, 1,
+                Book.TDD_BY_EXAMPLE, 1,
+                Book.LEGACY_CODE, 1
+        ));
+
+        double result = calculator.calculatePrice(basket);
+
+        // 5 books = 250 base, 25% discount = 187.5
+        assertEquals(187.5, result);
+    }
+
+    //Edge case: single copy of each book type
+    @Test
+    void shouldHandleAllBooksOnce() {
+
+        Basket basket = new Basket(Map.of(
+                Book.CLEAN_CODE, 1,
+                Book.CLEAN_CODER, 1,
+                Book.CLEAN_ARCHITECTURE, 1,
+                Book.TDD_BY_EXAMPLE, 1,
+                Book.LEGACY_CODE, 1
+        ));
+
+        double result = calculator.calculatePrice(basket);
+
+        assertTrue(result > 0);
+        assertEquals(187.5, result);
+    }
+
+    //High-volume stress test (important for recursion safety)
+    @Test
+    void shouldHandleLargeQuantities_withoutBreaking() {
+
+        Basket basket = new Basket(Map.of(
+                Book.CLEAN_CODE, 20,
+                Book.CLEAN_CODER, 20,
+                Book.CLEAN_ARCHITECTURE, 20,
+                Book.TDD_BY_EXAMPLE, 20,
+                Book.LEGACY_CODE, 20
+        ));
+
+        double result = calculator.calculatePrice(basket);
+
+        assertTrue(result > 0);
+    }
+
+    //Regression protection: uneven distribution case
+    @Test
+    void shouldHandleHighlySkewedBasket() {
+
+        Basket basket = new Basket(Map.of(
+                Book.CLEAN_CODE, 10,
+                Book.CLEAN_CODER, 1,
+                Book.CLEAN_ARCHITECTURE, 1
+        ));
+
+        double result = calculator.calculatePrice(basket);
+
+        assertTrue(result > 0);
     }
 }
