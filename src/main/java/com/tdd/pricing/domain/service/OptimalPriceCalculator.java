@@ -2,6 +2,7 @@ package com.tdd.pricing.domain.service;
 
 import com.tdd.pricing.domain.model.Basket;
 import com.tdd.pricing.domain.model.Book;
+import com.tdd.pricing.domain.model.PricingResult;
 import com.tdd.pricing.domain.policy.DiscountPolicy;
 import org.springframework.stereotype.Component;
 
@@ -21,7 +22,32 @@ public class OptimalPriceCalculator implements PriceCalculator {
     }
 
     @Override
-    public double calculatePrice(Basket basket) {
+    public PricingResult calculate(Basket basket) {
+
+        int totalItems = basket.getItems().values()
+                .stream()
+                .mapToInt(Integer::intValue)
+                .sum();
+
+        int uniqueBooks = basket.getItems().size();
+
+        double basePrice = totalItems * BOOK_PRICE;
+
+        double finalPrice = calculatePriceInternal(basket);
+
+        double discountAmount = basePrice - finalPrice;
+
+        return new PricingResult(
+                totalItems,
+                uniqueBooks,
+                basePrice,
+                discountAmount,
+                finalPrice
+        );
+    }
+
+
+    private double calculatePriceInternal(Basket basket) {
         return calculate(toCounts(basket));
     }
 

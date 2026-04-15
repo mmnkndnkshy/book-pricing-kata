@@ -2,6 +2,7 @@ package com.tdd.pricing.domain.service;
 
 import com.tdd.pricing.domain.model.Basket;
 import com.tdd.pricing.domain.model.Book;
+import com.tdd.pricing.domain.model.PricingResult;
 import com.tdd.pricing.domain.policy.DefaultDiscountPolicy;
 import org.junit.jupiter.api.Test;
 
@@ -22,9 +23,11 @@ class OptimalPriceCalculatorTest {
                 Book.CLEAN_CODE, 1
         ));
 
-        double result = calculator.calculatePrice(basket);
 
-        assertEquals(50.0, result);
+        PricingResult result = calculator.calculate(basket);
+        assertEquals(1, result.getUniqueBooks());
+        assertEquals(1, result.getTotalItems());
+        assertEquals(50.0, result.getFinalPrice());
     }
 
     @Test
@@ -34,9 +37,27 @@ class OptimalPriceCalculatorTest {
                 Book.CLEAN_CODE, 2
         ));
 
-        double result = calculator.calculatePrice(basket);
+        PricingResult result = calculator.calculate(basket);
+        assertEquals(2, result.getTotalItems());
+        assertEquals(1, result.getUniqueBooks());
+        assertEquals(100.0, result.getFinalPrice());
+    }
 
-        assertEquals(100.0, result);
+    @Test
+    void shouldApply5PercentDiscount_whenTwoDifferentBooks() {
+
+        Basket basket = new Basket(Map.of(
+                Book.CLEAN_CODE, 1,
+                Book.CLEAN_CODER, 1
+        ));
+
+        PricingResult result = calculator.calculate(basket);
+
+        assertEquals(2, result.getTotalItems());
+        assertEquals(2, result.getUniqueBooks());
+
+        // 2 * 50 = 100 → 5% discount = 95
+        assertEquals(95.0, result.getFinalPrice());
     }
 
 
@@ -49,24 +70,13 @@ class OptimalPriceCalculatorTest {
                 Book.CLEAN_ARCHITECTURE, 1
         ));
 
-        double result = calculator.calculatePrice(basket);
+        PricingResult result = calculator.calculate(basket);
+
+        assertEquals(3, result.getTotalItems());
+        assertEquals(3, result.getUniqueBooks());
 
         // 150 - 10% = 135
-        assertEquals(135.0, result);
-    }
-
-    @Test
-    void shouldApply5PercentDiscount_whenTwoDifferentBooks() {
-
-        Basket basket = new Basket(Map.of(
-                Book.CLEAN_CODE, 1,
-                Book.CLEAN_CODER, 1
-        ));
-
-        double result = calculator.calculatePrice(basket);
-
-        // 2 * 50 = 100 → 5% discount = 95
-        assertEquals(95.0, result);
+        assertEquals(135.0, result.getFinalPrice());
     }
 
     @Test
@@ -80,9 +90,9 @@ class OptimalPriceCalculatorTest {
                 Book.LEGACY_CODE, 1
         ));
 
-        double result = calculator.calculatePrice(basket);
+        PricingResult result = calculator.calculate(basket);
 
-        assertEquals(320.0, result);
+        assertEquals(320.0, result.getFinalPrice());
     }
 
     @Test
@@ -95,13 +105,13 @@ class OptimalPriceCalculatorTest {
                 Book.TDD_BY_EXAMPLE, 1
         ));
 
-        double result = calculator.calculatePrice(basket);
+        PricingResult result = calculator.calculate(basket);
 
         // Expected optimal grouping: 4 + 2
         // 4 → 200 - 20% = 160
         // 2 → 100 - 5% = 95
         // Total = 255
-        assertEquals(255.0, result);
+        assertEquals(255.0, result.getFinalPrice());
     }
 
     @Test
@@ -109,9 +119,12 @@ class OptimalPriceCalculatorTest {
 
         Basket basket = new Basket(Map.of());
 
-        double result = calculator.calculatePrice(basket);
+        PricingResult result = calculator.calculate(basket);
 
-        assertEquals(0.0, result);
+        assertEquals(0, result.getTotalItems());
+        assertEquals(0, result.getUniqueBooks());
+
+        assertEquals(0.0, result.getFinalPrice());
     }
 
     @Test
@@ -121,9 +134,9 @@ class OptimalPriceCalculatorTest {
                 Book.CLEAN_CODE, 5
         ));
 
-        double result = calculator.calculatePrice(basket);
+        PricingResult result = calculator.calculate(basket);
 
-        assertEquals(250.0, result);
+        assertEquals(250.0, result.getFinalPrice());
     }
 
     //Boundary: maximum discount group
@@ -138,10 +151,10 @@ class OptimalPriceCalculatorTest {
                 Book.LEGACY_CODE, 1
         ));
 
-        double result = calculator.calculatePrice(basket);
+        PricingResult result = calculator.calculate(basket);
 
         // 5 books = 250 base, 25% discount = 187.5
-        assertEquals(187.5, result);
+        assertEquals(187.5, result.getFinalPrice());
     }
 
     //Edge case: single copy of each book type
@@ -156,10 +169,10 @@ class OptimalPriceCalculatorTest {
                 Book.LEGACY_CODE, 1
         ));
 
-        double result = calculator.calculatePrice(basket);
+        PricingResult result = calculator.calculate(basket);
 
-        assertTrue(result > 0);
-        assertEquals(187.5, result);
+        assertTrue(result.getFinalPrice() > 0);
+        assertEquals(187.5, result.getFinalPrice());
     }
 
     //High-volume stress test (important for recursion safety)
@@ -174,9 +187,9 @@ class OptimalPriceCalculatorTest {
                 Book.LEGACY_CODE, 20
         ));
 
-        double result = calculator.calculatePrice(basket);
+        PricingResult result = calculator.calculate(basket);
 
-        assertTrue(result > 0);
+        assertTrue(result.getFinalPrice() > 0);
     }
 
     //Regression protection: uneven distribution case
@@ -189,8 +202,8 @@ class OptimalPriceCalculatorTest {
                 Book.CLEAN_ARCHITECTURE, 1
         ));
 
-        double result = calculator.calculatePrice(basket);
+        PricingResult result = calculator.calculate(basket);
 
-        assertTrue(result > 0);
+        assertTrue(result.getFinalPrice() > 0);
     }
 }

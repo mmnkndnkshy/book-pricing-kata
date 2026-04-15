@@ -4,9 +4,10 @@ info:
   version: 1.0.0
 
 paths:
-  /price:
+  /api/pricing/v1/calculatePrice:
     post:
       summary: Calculate price
+      operationId: calculatePrice
       requestBody:
         required: true
         content:
@@ -31,10 +32,44 @@ components:
           type: object
           additionalProperties:
             type: integer
+      required:
+        - items
 
     PriceResponse:
       type: object
       properties:
-        totalPrice:
+        basketSummary:
+          $ref: '#/components/schemas/BasketSummary'
+        pricing:
+          $ref: '#/components/schemas/Pricing'
+      required:
+        - basketSummary
+        - pricing
+
+    BasketSummary:
+      type: object
+      properties:
+        totalItems:
+          type: integer
+        uniqueBooks:
+          type: integer
+      required:
+        - totalItems
+        - uniqueBooks
+
+    Pricing:
+      type: object
+      properties:
+        basePrice:
           type: number
           format: double
+        discountAmount:
+          type: number
+          format: double
+        finalPrice:
+          type: number
+          format: double
+      required:
+        - basePrice
+        - discountAmount
+        - finalPrice
