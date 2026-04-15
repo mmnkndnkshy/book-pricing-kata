@@ -69,7 +69,7 @@ class OptimalPriceCalculatorTest {
     }
 
     @Test
-    void shouldReturn320_whenComplexBasket() {
+    void shouldPreferTwoGroupsOfFourInsteadOfFiveAndThree() {
 
         Basket basket = new Basket(Map.of(
                 Book.CLEAN_CODE, 2,
@@ -82,5 +82,46 @@ class OptimalPriceCalculatorTest {
         double result = calculator.calculatePrice(basket);
 
         assertEquals(320.0, result);
+    }
+
+    @Test
+    void shouldHandleMultipleOptimalSplits() {
+
+        Basket basket = new Basket(Map.of(
+                Book.CLEAN_CODE, 2,
+                Book.CLEAN_CODER, 2,
+                Book.CLEAN_ARCHITECTURE, 1,
+                Book.TDD_BY_EXAMPLE, 1
+        ));
+
+        double result = calculator.calculatePrice(basket);
+
+        // Expected optimal grouping: 4 + 2
+        // 4 → 200 - 20% = 160
+        // 2 → 100 - 5% = 95
+        // Total = 255
+        assertEquals(255.0, result);
+    }
+
+    @Test
+    void shouldReturnZero_whenBasketIsEmpty() {
+
+        Basket basket = new Basket(Map.of());
+
+        double result = calculator.calculatePrice(basket);
+
+        assertEquals(0.0, result);
+    }
+
+    @Test
+    void shouldHandleMultipleSameBooksWithoutDiscount() {
+
+        Basket basket = new Basket(Map.of(
+                Book.CLEAN_CODE, 5
+        ));
+
+        double result = calculator.calculatePrice(basket);
+
+        assertEquals(250.0, result);
     }
 }
