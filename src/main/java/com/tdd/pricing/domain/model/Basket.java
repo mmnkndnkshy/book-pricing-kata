@@ -1,16 +1,10 @@
 package com.tdd.pricing.domain.model;
 
+import lombok.Value;
+
 import java.util.Map;
 
+@Value
 public class Basket {
-
-    private final Map<Book, Integer> items;
-
-    public Basket(Map<Book, Integer> items) {
-        this.items = items;
-    }
-
-    public Map<Book, Integer> getItems() {
-        return items;
-    }
+    Map<Book, Integer> items;
 }

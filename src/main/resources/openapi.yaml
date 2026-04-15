@@ -1,0 +1,40 @@
+openapi: 3.0.3
+info:
+  title: Book Pricing API
+  version: 1.0.0
+
+paths:
+  /price:
+    post:
+      summary: Calculate price
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BasketRequest'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PriceResponse'
+
+components:
+  schemas:
+
+    BasketRequest:
+      type: object
+      properties:
+        items:
+          type: object
+          additionalProperties:
+            type: integer
+
+    PriceResponse:
+      type: object
+      properties:
+        totalPrice:
+          type: number
+          format: double
