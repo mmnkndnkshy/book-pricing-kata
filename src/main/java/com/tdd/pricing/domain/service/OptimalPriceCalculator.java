@@ -8,11 +8,10 @@ import org.springframework.stereotype.Component;
 import java.util.*;
 import java.util.stream.IntStream;
 
+import static com.tdd.pricing.domain.constant.PricingConstants.*;
+
 @Component
 public class OptimalPriceCalculator implements PriceCalculator {
-
-    private static final double BOOK_PRICE = 50.0;
-    private static final double ZERO_PRICE = 0.0;
 
     private final DiscountPolicy discountPolicy;
     private final Map<String, Double> memo = new HashMap<>();
@@ -29,7 +28,7 @@ public class OptimalPriceCalculator implements PriceCalculator {
     // Java 17 style conversion
     private int[] toCounts(Basket basket) {
         return Arrays.stream(Book.values())
-                .mapToInt(book -> basket.getItems().getOrDefault(book, 0))
+                .mapToInt(book -> basket.getItems().getOrDefault(book, ZERO))
                 .toArray();
     }
 
@@ -70,7 +69,7 @@ public class OptimalPriceCalculator implements PriceCalculator {
     // Generate all valid combinations
     private List<int[]> generateCombinations(int[] counts, int size) {
         List<int[]> result = new ArrayList<>();
-        backtrack(counts, size, 0, new ArrayList<>(), result);
+        backtrack(counts, size, ZERO, new ArrayList<>(), result);
         return result;
     }
 
@@ -87,10 +86,10 @@ public class OptimalPriceCalculator implements PriceCalculator {
         }
 
         for (int i = start; i < counts.length; i++) {
-            if (counts[i] > 0) {
+            if (counts[i] > ZERO) {
                 current.add(i);
-                backtrack(counts, size, i + 1, current, result);
-                current.remove(current.size() - 1);
+                backtrack(counts, size, i + ONE, current, result);
+                current.remove(current.size() - ONE);
             }
         }
     }
@@ -108,7 +107,7 @@ public class OptimalPriceCalculator implements PriceCalculator {
     // Helper methods
 
     private boolean isEmpty(int[] counts) {
-        return Arrays.stream(counts).allMatch(c -> c == 0);
+        return Arrays.stream(counts).allMatch(c -> c == ZERO);
     }
 
     private String keyOf(int[] counts) {
@@ -117,17 +116,17 @@ public class OptimalPriceCalculator implements PriceCalculator {
 
     private List<Integer> possibleGroupSizes(int[] counts) {
         int max = (int) Arrays.stream(counts)
-                .filter(c -> c > 0)
+                .filter(c -> c > ZERO)
                 .count();
 
-        return IntStream.rangeClosed(1, max)
+        return IntStream.rangeClosed(ONE, max)
                 .boxed()
                 .toList();
     }
 
     private double priceFor(int size) {
         double discount = discountPolicy.getDiscount(size);
-        return size * BOOK_PRICE * (1 - discount);
+        return size * BOOK_PRICE * (ONE - discount);
     }
 
 }
