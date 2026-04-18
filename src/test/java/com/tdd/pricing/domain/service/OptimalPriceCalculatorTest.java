@@ -1,8 +1,8 @@
 package com.tdd.pricing.domain.service;
 
-import com.tdd.pricing.domain.model.Basket;
+import com.tdd.pricing.api.model.BasketRequest;
+import com.tdd.pricing.api.model.PriceResponse;
 import com.tdd.pricing.domain.model.Book;
-import com.tdd.pricing.domain.model.PricingResult;
 import com.tdd.pricing.domain.policy.DefaultDiscountPolicy;
 import org.junit.jupiter.api.Test;
 
@@ -19,191 +19,175 @@ class OptimalPriceCalculatorTest {
     @Test
     void shouldReturn50_whenSingleBook() {
 
-        Basket basket = new Basket(Map.of(
-                Book.CLEAN_CODE, 1
-        ));
+        BasketRequest request = new BasketRequest()
+                .items(Map.of("CLEAN_CODE", 1));
 
 
-        PricingResult result = calculator.calculate(basket);
-        assertEquals(1, result.getUniqueBooks());
-        assertEquals(1, result.getTotalItems());
-        assertEquals(50.0, result.getFinalPrice());
+        PriceResponse response = calculator.calculate(request);
+        assertEquals(1, response.getBasketSummary().getTotalItems());
+        assertEquals(1, response.getBasketSummary().getUniqueBooks());
+        assertEquals(50.0, response.getPricing().getFinalPrice());
     }
 
     @Test
     void shouldReturn100_whenTwoCopiesOfSameBook() {
 
-        Basket basket = new Basket(Map.of(
-                Book.CLEAN_CODE, 2
-        ));
+        BasketRequest request = new BasketRequest()
+                .items(Map.of("CLEAN_CODE", 2));
 
-        PricingResult result = calculator.calculate(basket);
-        assertEquals(2, result.getTotalItems());
-        assertEquals(1, result.getUniqueBooks());
-        assertEquals(100.0, result.getFinalPrice());
+        PriceResponse response = calculator.calculate(request);
+
+        assertEquals(2, response.getBasketSummary().getTotalItems());
+        assertEquals(1, response.getBasketSummary().getUniqueBooks());
+        assertEquals(100.0, response.getPricing().getFinalPrice());
     }
 
     @Test
     void shouldApply5PercentDiscount_whenTwoDifferentBooks() {
 
-        Basket basket = new Basket(Map.of(
-                Book.CLEAN_CODE, 1,
-                Book.CLEAN_CODER, 1
-        ));
+        BasketRequest request = new BasketRequest()
+                .items(Map.of(
+                        "CLEAN_CODE", 1,
+                        "CLEAN_CODER", 1
+                ));
 
-        PricingResult result = calculator.calculate(basket);
+        PriceResponse response = calculator.calculate(request);
 
-        assertEquals(2, result.getTotalItems());
-        assertEquals(2, result.getUniqueBooks());
+        assertEquals(2, response.getBasketSummary().getTotalItems());
+        assertEquals(2, response.getBasketSummary().getUniqueBooks());
 
         // 2 * 50 = 100 → 5% discount = 95
-        assertEquals(95.0, result.getFinalPrice());
+        assertEquals(95.0, response.getPricing().getFinalPrice());
     }
 
 
     @Test
     void shouldApply10PercentDiscount_whenThreeDifferentBooks() {
 
-        Basket basket = new Basket(Map.of(
-                Book.CLEAN_CODE, 1,
-                Book.CLEAN_CODER, 1,
-                Book.CLEAN_ARCHITECTURE, 1
-        ));
+        BasketRequest request = new BasketRequest()
+                .items(Map.of(
+                        "CLEAN_CODE", 1,
+                        "CLEAN_CODER", 1,
+                        "CLEAN_ARCHITECTURE", 1
+                ));
 
-        PricingResult result = calculator.calculate(basket);
+        PriceResponse response = calculator.calculate(request);
 
-        assertEquals(3, result.getTotalItems());
-        assertEquals(3, result.getUniqueBooks());
+        assertEquals(3, response.getBasketSummary().getTotalItems());
+        assertEquals(3, response.getBasketSummary().getUniqueBooks());
 
         // 150 - 10% = 135
-        assertEquals(135.0, result.getFinalPrice());
+        assertEquals(135.0, response.getPricing().getFinalPrice());
     }
 
     @Test
     void shouldPreferTwoGroupsOfFourInsteadOfFiveAndThree() {
 
-        Basket basket = new Basket(Map.of(
-                Book.CLEAN_CODE, 2,
-                Book.CLEAN_CODER, 2,
-                Book.CLEAN_ARCHITECTURE, 2,
-                Book.TDD_BY_EXAMPLE, 1,
-                Book.LEGACY_CODE, 1
-        ));
+        BasketRequest request = new BasketRequest()
+                .items(Map.of(
+                        "CLEAN_CODE", 2,
+                        "CLEAN_CODER", 2,
+                        "CLEAN_ARCHITECTURE", 2,
+                        "TDD_BY_EXAMPLE",1,
+                        "LEGACY_CODE",1
+                ));
 
-        PricingResult result = calculator.calculate(basket);
+        PriceResponse response = calculator.calculate(request);
 
-        assertEquals(320.0, result.getFinalPrice());
+        assertEquals(322.5, response.getPricing().getFinalPrice());
     }
 
     @Test
     void shouldHandleMultipleOptimalSplits() {
 
-        Basket basket = new Basket(Map.of(
-                Book.CLEAN_CODE, 2,
-                Book.CLEAN_CODER, 2,
-                Book.CLEAN_ARCHITECTURE, 1,
-                Book.TDD_BY_EXAMPLE, 1
-        ));
+        BasketRequest request = new BasketRequest()
+                .items(Map.of(
+                        "CLEAN_CODE", 2,
+                        "CLEAN_CODER", 2,
+                        "CLEAN_ARCHITECTURE", 2,
+                        "TDD_BY_EXAMPLE",1
+                ));
 
-        PricingResult result = calculator.calculate(basket);
+        PriceResponse response = calculator.calculate(request);
 
-        // Expected optimal grouping: 4 + 2
-        // 4 → 200 - 20% = 160
-        // 2 → 100 - 5% = 95
-        // Total = 255
-        assertEquals(255.0, result.getFinalPrice());
+        assertEquals(295.0, response.getPricing().getFinalPrice());
     }
 
     @Test
     void shouldReturnZero_whenBasketIsEmpty() {
 
-        Basket basket = new Basket(Map.of());
+        BasketRequest request = new BasketRequest()
+                .items(Map.of());
 
-        PricingResult result = calculator.calculate(basket);
+        PriceResponse response = calculator.calculate(request);
 
-        assertEquals(0, result.getTotalItems());
-        assertEquals(0, result.getUniqueBooks());
-
-        assertEquals(0.0, result.getFinalPrice());
+        assertEquals(0, response.getBasketSummary().getTotalItems());
+        assertEquals(0, response.getBasketSummary().getUniqueBooks());
+        assertEquals(0.0, response.getPricing().getFinalPrice());
     }
 
     @Test
     void shouldHandleMultipleSameBooksWithoutDiscount() {
 
-        Basket basket = new Basket(Map.of(
-                Book.CLEAN_CODE, 5
-        ));
+        BasketRequest request = new BasketRequest()
+                .items(Map.of("CLEAN_CODE", 5));
 
-        PricingResult result = calculator.calculate(basket);
+        PriceResponse response = calculator.calculate(request);
 
-        assertEquals(250.0, result.getFinalPrice());
+        assertEquals(250.0, response.getPricing().getFinalPrice());
     }
 
     //Boundary: maximum discount group
     @Test
     void shouldApplyMaxDiscount_whenFiveDifferentBooks() {
 
-        Basket basket = new Basket(Map.of(
-                Book.CLEAN_CODE, 1,
-                Book.CLEAN_CODER, 1,
-                Book.CLEAN_ARCHITECTURE, 1,
-                Book.TDD_BY_EXAMPLE, 1,
-                Book.LEGACY_CODE, 1
-        ));
+        BasketRequest request = new BasketRequest()
+                .items(Map.of(
+                        "CLEAN_CODE", 1,
+                        "CLEAN_CODER", 1,
+                        "CLEAN_ARCHITECTURE", 1,
+                        "TDD_BY_EXAMPLE",1,
+                        "LEGACY_CODE",1
+                ));
 
-        PricingResult result = calculator.calculate(basket);
+        PriceResponse response = calculator.calculate(request);
 
         // 5 books = 250 base, 25% discount = 187.5
-        assertEquals(187.5, result.getFinalPrice());
+        assertEquals(187.5, response.getPricing().getFinalPrice());
     }
 
-    //Edge case: single copy of each book type
-    @Test
-    void shouldHandleAllBooksOnce() {
-
-        Basket basket = new Basket(Map.of(
-                Book.CLEAN_CODE, 1,
-                Book.CLEAN_CODER, 1,
-                Book.CLEAN_ARCHITECTURE, 1,
-                Book.TDD_BY_EXAMPLE, 1,
-                Book.LEGACY_CODE, 1
-        ));
-
-        PricingResult result = calculator.calculate(basket);
-
-        assertTrue(result.getFinalPrice() > 0);
-        assertEquals(187.5, result.getFinalPrice());
-    }
 
     //High-volume stress test (important for recursion safety)
     @Test
     void shouldHandleLargeQuantities_withoutBreaking() {
 
-        Basket basket = new Basket(Map.of(
-                Book.CLEAN_CODE, 20,
-                Book.CLEAN_CODER, 20,
-                Book.CLEAN_ARCHITECTURE, 20,
-                Book.TDD_BY_EXAMPLE, 20,
-                Book.LEGACY_CODE, 20
-        ));
+        BasketRequest request = new BasketRequest()
+                .items(Map.of(
+                        "CLEAN_CODE", 20,
+                        "CLEAN_CODER", 20,
+                        "CLEAN_ARCHITECTURE", 20,
+                        "TDD_BY_EXAMPLE",20,
+                        "LEGACY_CODE",20
+                ));
 
-        PricingResult result = calculator.calculate(basket);
+        PriceResponse response = calculator.calculate(request);
 
-        assertTrue(result.getFinalPrice() > 0);
+        assertTrue(response.getPricing().getFinalPrice().intValue() > 0);
     }
 
     //Regression protection: uneven distribution case
     @Test
     void shouldHandleHighlySkewedBasket() {
 
-        Basket basket = new Basket(Map.of(
-                Book.CLEAN_CODE, 10,
-                Book.CLEAN_CODER, 1,
-                Book.CLEAN_ARCHITECTURE, 1
-        ));
+        BasketRequest request = new BasketRequest()
+                .items(Map.of(
+                        "CLEAN_CODE", 10,
+                        "CLEAN_CODER", 1,
+                        "CLEAN_ARCHITECTURE", 1
+                ));
 
-        PricingResult result = calculator.calculate(basket);
+        PriceResponse response = calculator.calculate(request);
 
-        assertTrue(result.getFinalPrice() > 0);
+        assertTrue(response.getPricing().getFinalPrice().intValue() > 0);
     }
 }

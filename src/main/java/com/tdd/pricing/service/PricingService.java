@@ -1,7 +1,7 @@
 package com.tdd.pricing.service;
 
-import com.tdd.pricing.domain.model.Basket;
-import com.tdd.pricing.domain.model.PricingResult;
+import com.tdd.pricing.api.model.BasketRequest;
+import com.tdd.pricing.api.model.PriceResponse;
 import com.tdd.pricing.domain.service.PriceCalculator;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -10,9 +10,9 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 public class PricingService {
 
-    private final PriceCalculator priceCalculator;
+    private final PriceCalculator calculator;
 
-    public PricingResult calculate(Basket basket) {
-        return priceCalculator.calculate(basket);
+    public PriceResponse calculate(BasketRequest request) {
+        return calculator.calculate(request);
     }
 }

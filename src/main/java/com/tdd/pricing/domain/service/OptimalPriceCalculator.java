@@ -1,158 +1,92 @@
 package com.tdd.pricing.domain.service;
 
-import com.tdd.pricing.domain.model.Basket;
+import com.tdd.pricing.api.model.*;
 import com.tdd.pricing.domain.model.Book;
-import com.tdd.pricing.domain.model.PricingResult;
 import com.tdd.pricing.domain.policy.DiscountPolicy;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
-import java.util.*;
-import java.util.stream.IntStream;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 import static com.tdd.pricing.domain.constant.PricingConstants.*;
 
 @Component
+@RequiredArgsConstructor
 public class OptimalPriceCalculator implements PriceCalculator {
 
     private final DiscountPolicy discountPolicy;
-    private final Map<String, Double> memo = new HashMap<>();
-
-    public OptimalPriceCalculator(DiscountPolicy discountPolicy) {
-        this.discountPolicy = discountPolicy;
-    }
 
     @Override
-    public PricingResult calculate(Basket basket) {
+    public PriceResponse calculate(BasketRequest request) {
 
-        int totalItems = basket.getItems().values()
-                .stream()
-                .mapToInt(Integer::intValue)
-                .sum();
+        if (request == null || request.getItems() == null || request.getItems().isEmpty()) {
+            return emptyResponse();
+        }
 
-        int uniqueBooks = basket.getItems().size();
+        Map<Book, Integer> items = request.getItems().entrySet().stream()
+                .collect(Collectors.toMap(
+                        e -> Book.valueOf(e.getKey()),
+                        Map.Entry::getValue
+                ));
 
-        double basePrice = totalItems * BOOK_PRICE;
+        int totalItems = items.values().stream().mapToInt(Integer::intValue).sum();
+        int uniqueBooks = items.size();
 
-        double finalPrice = calculatePriceInternal(basket);
+        double basePrice = totalItems * UNIT_BOOK_PRICE;
+
+        double finalPrice = computeTotalPrice(new HashMap<>(items));
 
         double discountAmount = basePrice - finalPrice;
 
-        return new PricingResult(
-                totalItems,
-                uniqueBooks,
-                basePrice,
-                discountAmount,
-                finalPrice
-        );
+        return new PriceResponse()
+                .basketSummary(new BasketSummary()
+                        .totalItems(totalItems)
+                        .uniqueBooks(uniqueBooks)
+                )
+                .pricing(new Pricing()
+                        .basePrice(basePrice)
+                        .discountAmount(discountAmount)
+                        .finalPrice(finalPrice)
+                );
     }
 
+    private double computeTotalPrice(Map<Book, Integer> items) {
 
-    private double calculatePriceInternal(Basket basket) {
-        return calculate(toCounts(basket));
-    }
-
-    // Java 17 style conversion
-    private int[] toCounts(Basket basket) {
-        return Arrays.stream(Book.values())
-                .mapToInt(book -> basket.getItems().getOrDefault(book, ZERO))
-                .toArray();
-    }
-
-    private double calculate(int[] counts) {
-
-        if (isEmpty(counts)) return ZERO_PRICE;
-
-        String key = keyOf(counts);
-
-        if (memo.containsKey(key)) {
-            return memo.get(key);
+        if (items.values().stream().allMatch(qty -> qty == ZERO)) {
+            return ZERO_PRICE;
         }
 
-        double minPrice = possibleGroupSizes(counts).stream()
-                .mapToDouble(size -> calculateForGroupSize(counts, size))
-                .min()
-                .orElse(Double.POSITIVE_INFINITY);
-
-        double finalPrice = (minPrice == Double.POSITIVE_INFINITY)
-                ? ZERO_PRICE
-                : minPrice;
-
-        memo.put(key, finalPrice);
-        return finalPrice;
-    }
-
-    // Core improvement: try ALL combinations
-    private double calculateForGroupSize(int[] counts, int size) {
-
-        List<int[]> combinations = generateCombinations(counts, size);
-
-        return combinations.stream()
-                .mapToDouble(newCounts -> priceFor(size) + calculate(newCounts))
-                .min()
-                .orElse(Double.POSITIVE_INFINITY);
-    }
-
-    // Generate all valid combinations
-    private List<int[]> generateCombinations(int[] counts, int size) {
-        List<int[]> result = new ArrayList<>();
-        backtrack(counts, size, ZERO, new ArrayList<>(), result);
-        return result;
-    }
-
-    // Backtracking
-    private void backtrack(int[] counts,
-                           int size,
-                           int start,
-                           List<Integer> current,
-                           List<int[]> result) {
-
-        if (current.size() == size) {
-            result.add(applyCombination(counts, current));
-            return;
-        }
-
-        for (int i = start; i < counts.length; i++) {
-            if (counts[i] > ZERO) {
-                current.add(i);
-                backtrack(counts, size, i + ONE, current, result);
-                current.remove(current.size() - ONE);
-            }
-        }
-    }
-
-    // Apply selected combination
-    private int[] applyCombination(int[] counts, List<Integer> indices) {
-        int[] newCounts = counts.clone();
-        for (int index : indices) {
-            newCounts[index]--;
-        }
-        return newCounts;
-    }
-
-
-    // Helper methods
-
-    private boolean isEmpty(int[] counts) {
-        return Arrays.stream(counts).allMatch(c -> c == ZERO);
-    }
-
-    private String keyOf(int[] counts) {
-        return Arrays.toString(counts);
-    }
-
-    private List<Integer> possibleGroupSizes(int[] counts) {
-        int max = (int) Arrays.stream(counts)
-                .filter(c -> c > ZERO)
+        int groupSize = (int) items.values().stream()
+                .filter(qty -> qty > ZERO)
                 .count();
 
-        return IntStream.rangeClosed(ONE, max)
-                .boxed()
-                .toList();
+        double groupPrice = groupSize * UNIT_BOOK_PRICE *
+                (ONE - discountPolicy.getDiscount(groupSize));
+
+        Map<Book, Integer> reduced = items.entrySet().stream()
+                .collect(HashMap::new,
+                        (map, e) -> map.put(
+                                e.getKey(),
+                                e.getValue() > ZERO ? e.getValue() - ONE : ZERO
+                        ),
+                        HashMap::putAll
+                );
+
+        return groupPrice + computeTotalPrice(reduced);
     }
 
-    private double priceFor(int size) {
-        double discount = discountPolicy.getDiscount(size);
-        return size * BOOK_PRICE * (ONE - discount);
+    private PriceResponse emptyResponse() {
+        return new PriceResponse()
+                .basketSummary(new BasketSummary()
+                        .totalItems(ZERO)
+                        .uniqueBooks(ZERO)
+                )
+                .pricing(new Pricing()
+                        .basePrice(ZERO_PRICE)
+                        .discountAmount(ZERO_PRICE)
+                        .finalPrice(ZERO_PRICE)
+                );
     }
-
 }
