@@ -1,89 +1,92 @@
 package com.tdd.pricing.domain.service;
 
-import com.tdd.pricing.domain.model.Basket;
+import com.tdd.pricing.api.model.*;
 import com.tdd.pricing.domain.model.Book;
 import com.tdd.pricing.domain.policy.DiscountPolicy;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
-import java.util.*;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.stream.Collectors;
+
+import static com.tdd.pricing.domain.constant.PricingConstants.*;
 
 @Component
+@RequiredArgsConstructor
 public class OptimalPriceCalculator implements PriceCalculator {
 
-    private static final double BOOK_PRICE = 50.0;
-
     private final DiscountPolicy discountPolicy;
-    private final Map<String, Double> memo = new HashMap<>();
-
-    public OptimalPriceCalculator(DiscountPolicy discountPolicy) {
-        this.discountPolicy = discountPolicy;
-    }
 
     @Override
-    public double calculatePrice(Basket basket) {
-        int[] counts = convertToCounts(basket);
-        return calculate(counts);
+    public PriceResponse calculate(BasketRequest request) {
+
+        if (request == null || request.getItems() == null || request.getItems().isEmpty()) {
+            return emptyResponse();
+        }
+
+        Map<Book, Integer> items = request.getItems().entrySet().stream()
+                .collect(Collectors.toMap(
+                        e -> Book.valueOf(e.getKey()),
+                        Map.Entry::getValue
+                ));
+
+        int totalItems = items.values().stream().mapToInt(Integer::intValue).sum();
+        int uniqueBooks = items.size();
+
+        double basePrice = totalItems * UNIT_BOOK_PRICE;
+
+        double finalPrice = computeTotalPrice(new HashMap<>(items));
+
+        double discountAmount = basePrice - finalPrice;
+
+        return new PriceResponse()
+                .basketSummary(new BasketSummary()
+                        .totalItems(totalItems)
+                        .uniqueBooks(uniqueBooks)
+                )
+                .pricing(new Pricing()
+                        .basePrice(basePrice)
+                        .discountAmount(discountAmount)
+                        .finalPrice(finalPrice)
+                );
     }
 
-    private int[] convertToCounts(Basket basket) {
-        int[] counts = new int[Book.values().length];
+    private double computeTotalPrice(Map<Book, Integer> items) {
 
-        for (Book book : Book.values()) {
-            counts[book.ordinal()] = basket.getItems().getOrDefault(book, 0);
+        if (items.values().stream().allMatch(qty -> qty == ZERO)) {
+            return ZERO_PRICE;
         }
 
-        return counts;
-    }
-
-    private double calculate(int[] counts) {
-
-
-        if (Arrays.stream(counts).allMatch(c -> c == 0)) {
-            return 0.0;
-        }
-
-        String key = Arrays.toString(counts);
-
-        if (memo.containsKey(key)) {
-            return memo.get(key);
-        }
-
-        double minPrice = Double.POSITIVE_INFINITY;
-
-        int maxPossibleSize = (int) Arrays.stream(counts)
-                .filter(c -> c > 0)
+        int groupSize = (int) items.values().stream()
+                .filter(qty -> qty > ZERO)
                 .count();
 
-        for (int size = 1; size <= maxPossibleSize; size++) {
+        double groupPrice = groupSize * UNIT_BOOK_PRICE *
+                (ONE - discountPolicy.getDiscount(groupSize));
 
-            int[] newCounts = counts.clone();
-            int taken = 0;
+        Map<Book, Integer> reduced = items.entrySet().stream()
+                .collect(HashMap::new,
+                        (map, e) -> map.put(
+                                e.getKey(),
+                                e.getValue() > ZERO ? e.getValue() - ONE : ZERO
+                        ),
+                        HashMap::putAll
+                );
 
-            for (int i = 0; i < newCounts.length && taken < size; i++) {
-                if (newCounts[i] > 0) {
-                    newCounts[i]--;
-                    taken++;
-                }
-            }
+        return groupPrice + computeTotalPrice(reduced);
+    }
 
-            if (taken != size) {
-                continue;
-            }
-
-            double discount = discountPolicy.getDiscount(size);
-            double groupPrice = size * BOOK_PRICE * (1 - discount);
-
-
-            double totalPrice = groupPrice + calculate(newCounts);
-
-            minPrice = Math.min(minPrice, totalPrice);
-        }
-
-        if (minPrice == Double.POSITIVE_INFINITY) {
-            return 0.0;
-        }
-
-        memo.put(key, minPrice);
-        return minPrice;
+    private PriceResponse emptyResponse() {
+        return new PriceResponse()
+                .basketSummary(new BasketSummary()
+                        .totalItems(ZERO)
+                        .uniqueBooks(ZERO)
+                )
+                .pricing(new Pricing()
+                        .basePrice(ZERO_PRICE)
+                        .discountAmount(ZERO_PRICE)
+                        .finalPrice(ZERO_PRICE)
+                );
     }
 }

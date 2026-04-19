@@ -1,7 +1,9 @@
 package com.tdd.pricing.domain.service;
 
-import com.tdd.pricing.domain.model.Basket;
+import com.tdd.pricing.api.model.BasketRequest;
+import com.tdd.pricing.api.model.PriceResponse;
 
 public interface PriceCalculator {
-    double calculatePrice(Basket basket);
+
+    PriceResponse calculate(BasketRequest request);
 }
